@@ -32,14 +32,15 @@ contract CertificateRegistry {
         require(trustedIssuers[msg.sender], "You are not a trusted issuer!");
         _;
     }
- 
-    function addCertificate(string memory _checksum, string memory _recipient_name, string memory _recipient_surname) public onlyTrustedIssuer {
-        require(keccak256(bytes(certificates[_checksum].checksum)) != keccak256(bytes(_checksum)), "Certificate already present!");
-        require(bytes(_checksum).length > 0, "File checksum must not be empty!");
-        require(bytes(_recipient_name).length > 0, "Recipent name must not be empty!");
-        require(bytes(_recipient_surname).length > 0, "Recipent surname must not be empty!");
 
-        certificates[_checksum] = Certificate(_checksum, block.timestamp, block.timestamp + 30 days, msg.sender, Recipient(_recipient_name, _recipient_surname));
+    function addCertificate(string memory _checksum, string memory _recipient_name, string memory _recipient_surname, uint256 _days_valid) public onlyTrustedIssuer {
+        require(bytes(_checksum).length > 0, "File checksum must not be empty!");
+        require(keccak256(bytes(certificates[_checksum].checksum)) != keccak256(bytes(_checksum)), "Certificate already present!");
+        require(bytes(_recipient_name).length > 0, "Recipient name must not be empty!");
+        require(bytes(_recipient_surname).length > 0, "Recipient surname must not be empty!");
+        require(_days_valid > 0, "Contract must be valid for at least 1 day!");
+
+        certificates[_checksum] = Certificate(_checksum, block.timestamp, block.timestamp + (_days_valid * 1 days), msg.sender, Recipient(_recipient_name, _recipient_surname));
     }
 
     function addTrustedIssuer(address _issuer) public onlyTrustedIssuer {
@@ -52,8 +53,20 @@ contract CertificateRegistry {
         }
     }
 
+    function isTrustedIssuer(address _issuer) public view returns(bool) {
+        return trustedIssuers[_issuer];
+    }
+
     // Anyone should be able to download certificate, unless recipients also has to be trusted
     function getCertificate(string memory _checksum) public view returns (Certificate memory result) {
         result = certificates[_checksum];
     }
+
+    function invalidate(string memory _checksum) public {
+        require(bytes(certificates[_checksum].checksum).length > 0, "Certificate does not exist!");
+        require(certificates[_checksum].issuer == msg.sender, "You must be contract's issuer!");
+
+        delete certificates[_checksum];
+    }
+
 }
