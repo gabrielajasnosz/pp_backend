@@ -10,6 +10,8 @@ contract("CertificateRepository", async accounts => {
         await truffleAssert.passes(
             certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1)
         );
+
+        await certificateRepositoryInstance.invalidate(checksum)
     });
 
     it("should fail to add certificate if not trusted issuer", async () => {
@@ -33,6 +35,8 @@ contract("CertificateRepository", async accounts => {
             truffleAssert.ErrorType.REVERT,
             "Certificate already present!"
         );
+
+        await certificateRepositoryInstance.invalidate(checksum)
     });
 
     it("should fail to add certificate if checksum empty", async () => {
@@ -112,6 +116,8 @@ contract("CertificateRepository", async accounts => {
               checksum,
               "Checksum is not correct"
             );
+
+        await certificateRepositoryInstance.invalidate(checksum)
     });
 
     it("should add and remove trusted issuer", async () => {
@@ -155,6 +161,14 @@ contract("CertificateRepository", async accounts => {
               "",
               "Contract was not invalidated"
             );
+
+        const array = await certificateRepositoryInstance.getChecksums()
+
+        assert.equal(
+              array.length,
+              0,
+              "Contract was not invalidated"
+            );
     });
 
     it("should fail to invalidate certificate if not certificate's issuer", async () => {
@@ -169,6 +183,8 @@ contract("CertificateRepository", async accounts => {
             truffleAssert.ErrorType.REVERT,
             "You must be contract's issuer!"
         );
+
+        await certificateRepositoryInstance.invalidate(checksum)
     });
 
     it("should fail to invalidate certificate if certificate does not exist", async () => {
@@ -182,5 +198,111 @@ contract("CertificateRepository", async accounts => {
             "Certificate does not exist!"
         );
     });
+
+    it("should return all checksums", async () => {
+
+        const checksum = "checksum11"
+        const checksum2 = "checksum12"
+        const checksum3 = "checksum13"
+
+        const certificateRepositoryInstance = await CertificateRepository.deployed();
+        await certificateRepositoryInstance.addTrustedIssuer(accounts[1])
+
+        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1)
+        await certificateRepositoryInstance.addCertificate(checksum2, "jan", "nowak", 1, {from: accounts[1]})
+
+        await certificateRepositoryInstance.addCertificate(checksum3, "jan", "wójcik", 1)
+        await certificateRepositoryInstance.invalidate(checksum3)
+
+        const array = await certificateRepositoryInstance.getChecksums()
+
+        assert.equal(
+              array[0],
+              'checksum11',
+              "Wrong checksums returned"
+            );
+
+        assert.equal(
+              array[1],
+              'checksum12',
+              "Wrong checksums returned"
+            );
+
+        assert.equal(
+              array.length,
+              2,
+              "Wrong checksums returned"
+            );
+
+        await certificateRepositoryInstance.invalidate(checksum)
+        await certificateRepositoryInstance.invalidate(checksum2, {from: accounts[1]})
+
+    });
+
+    it("should get all certificates issued by issuer", async () => {
+        const checksum = "checksum13"
+        const checksum2 = "checksum14"
+
+        const certificateRepositoryInstance = await CertificateRepository.deployed();
+
+        await certificateRepositoryInstance.addTrustedIssuer(accounts[1])
+
+        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1)
+        await certificateRepositoryInstance.addCertificate(checksum2, "jan", "nowak", 1, {from: accounts[1]})
+
+
+        const array = await certificateRepositoryInstance.getCertificatesIssuedBy(accounts[0])
+
+        assert.equal(
+              array.length,
+              1,
+              "Wrong certificates returned"
+            );
+
+        assert.equal(
+              array[0].checksum,
+              checksum,
+              "Wrong certificates returned"
+            );
+
+        await certificateRepositoryInstance.invalidate(checksum2, {from: accounts[1]})
+        await certificateRepositoryInstance.invalidate(checksum)
+    });
+
+        it("should get all certificates", async () => {
+            const checksum = "checksum15"
+            const checksum2 = "checksum16"
+
+            const certificateRepositoryInstance = await CertificateRepository.deployed();
+
+            await certificateRepositoryInstance.addTrustedIssuer(accounts[1])
+
+            await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1)
+            await certificateRepositoryInstance.addCertificate(checksum2, "jan", "nowak", 1, {from: accounts[1]})
+
+
+            const array = await certificateRepositoryInstance.getAllCertificates()
+
+            assert.equal(
+                  array.length,
+                  2,
+                  "Wrong certificates returned"
+                );
+
+            assert.equal(
+                  array[0].checksum,
+                  checksum,
+                  "Wrong certificates returned"
+                );
+
+            assert.equal(
+                  array[1].checksum,
+                  checksum2,
+                  "Wrong certificates returned"
+                );
+
+            await certificateRepositoryInstance.invalidate(checksum)
+            await certificateRepositoryInstance.invalidate(checksum2, {from: accounts[1]})
+        });
 
 });
