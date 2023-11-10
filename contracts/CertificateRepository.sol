@@ -18,6 +18,7 @@ contract CertificateRegistry {
         uint256 issueDate;
         uint256 expireDate;
         address issuer;
+        string certUrl;
         Recipient recipient;
     }
  
@@ -35,14 +36,14 @@ contract CertificateRegistry {
         _;
     }
 
-    function addCertificate(string memory _checksum, string memory _recipient_name, string memory _recipient_surname, uint256 _days_valid) public onlyTrustedIssuer {
+    function addCertificate(string memory _checksum, string memory _recipient_name, string memory _recipient_surname, uint256 _days_valid, string memory certUrl) public onlyTrustedIssuer {
         require(bytes(_checksum).length > 0, "File checksum must not be empty!");
         require(keccak256(bytes(certificates[_checksum].checksum)) != keccak256(bytes(_checksum)), "Certificate already present!");
         require(bytes(_recipient_name).length > 0, "Recipient name must not be empty!");
         require(bytes(_recipient_surname).length > 0, "Recipient surname must not be empty!");
         require(_days_valid > 0, "Contract must be valid for at least 1 day!");
 
-        certificates[_checksum] = Certificate(_checksum, block.timestamp, block.timestamp + (_days_valid * 1 days), msg.sender, Recipient(_recipient_name, _recipient_surname));
+        certificates[_checksum] = Certificate(_checksum, block.timestamp, block.timestamp + (_days_valid * 1 days), msg.sender, certUrl, Recipient(_recipient_name, _recipient_surname));
         checksums.push(_checksum);
     }
 

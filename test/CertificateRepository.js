@@ -8,7 +8,7 @@ contract("CertificateRepository", async accounts => {
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
         await truffleAssert.passes(
-            certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1)
+            certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url")
         );
 
         await certificateRepositoryInstance.invalidate(checksum)
@@ -19,7 +19,7 @@ contract("CertificateRepository", async accounts => {
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
         await truffleAssert.fails(
-            certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, {from: accounts[1]}),
+            certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url", {from: accounts[1]}),
             truffleAssert.ErrorType.REVERT,
             "You are not a trusted issuer!"
         );
@@ -29,9 +29,9 @@ contract("CertificateRepository", async accounts => {
         const checksum = "checksum3"
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
-        certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1)
+        certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url")
         await truffleAssert.fails(
-            certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1),
+            certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url"),
             truffleAssert.ErrorType.REVERT,
             "Certificate already present!"
         );
@@ -44,7 +44,7 @@ contract("CertificateRepository", async accounts => {
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
         await truffleAssert.fails(
-            certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1),
+            certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url"),
             truffleAssert.ErrorType.REVERT,
             "File checksum must not be empty!"
         );
@@ -55,7 +55,7 @@ contract("CertificateRepository", async accounts => {
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
         await truffleAssert.fails(
-            certificateRepositoryInstance.addCertificate(checksum, "", "kowalski", 1),
+            certificateRepositoryInstance.addCertificate(checksum, "", "kowalski", 1, "url"),
             truffleAssert.ErrorType.REVERT,
             "Recipient name must not be empty!"
         );
@@ -66,7 +66,7 @@ contract("CertificateRepository", async accounts => {
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
         await truffleAssert.fails(
-            certificateRepositoryInstance.addCertificate(checksum, "jan", "", 1),
+            certificateRepositoryInstance.addCertificate(checksum, "jan", "", 1, "url"),
             truffleAssert.ErrorType.REVERT,
             "Recipient surname must not be empty!"
         );
@@ -77,7 +77,7 @@ contract("CertificateRepository", async accounts => {
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
         await truffleAssert.fails(
-            certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 0),
+            certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 0, "url"),
             truffleAssert.ErrorType.REVERT,
             "Contract must be valid for at least 1 day!"
         );
@@ -88,7 +88,7 @@ contract("CertificateRepository", async accounts => {
         const _days_valid = 1
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
-        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", _days_valid)
+        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", _days_valid, "url")
 
         const certificate = await certificateRepositoryInstance.getCertificate(checksum)
         assert.equal(
@@ -112,9 +112,9 @@ contract("CertificateRepository", async accounts => {
               "Issuer is not correct"
             );
         assert.equal(
-              certificate.checksum,
-              checksum,
-              "Checksum is not correct"
+              certificate.certUrl,
+              "url",
+              "Url is not correct"
             );
 
         await certificateRepositoryInstance.invalidate(checksum)
@@ -143,7 +143,7 @@ contract("CertificateRepository", async accounts => {
         const _days_valid = 1
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
-        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", _days_valid)
+        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", _days_valid, "url")
 
         const certificate = await certificateRepositoryInstance.getCertificate(checksum)
         assert.equal(
@@ -176,7 +176,7 @@ contract("CertificateRepository", async accounts => {
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
 
-        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1)
+        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url")
 
         await truffleAssert.fails(
             certificateRepositoryInstance.invalidate(checksum, {from: accounts[1]}),
@@ -208,10 +208,10 @@ contract("CertificateRepository", async accounts => {
         const certificateRepositoryInstance = await CertificateRepository.deployed();
         await certificateRepositoryInstance.addTrustedIssuer(accounts[1])
 
-        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1)
-        await certificateRepositoryInstance.addCertificate(checksum2, "jan", "nowak", 1, {from: accounts[1]})
+        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url")
+        await certificateRepositoryInstance.addCertificate(checksum2, "jan", "nowak", 1, "url", {from: accounts[1]})
 
-        await certificateRepositoryInstance.addCertificate(checksum3, "jan", "wójcik", 1)
+        await certificateRepositoryInstance.addCertificate(checksum3, "jan", "wójcik", 1, "url")
         await certificateRepositoryInstance.invalidate(checksum3)
 
         const array = await certificateRepositoryInstance.getChecksums()
@@ -247,8 +247,8 @@ contract("CertificateRepository", async accounts => {
 
         await certificateRepositoryInstance.addTrustedIssuer(accounts[1])
 
-        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1)
-        await certificateRepositoryInstance.addCertificate(checksum2, "jan", "nowak", 1, {from: accounts[1]})
+        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url")
+        await certificateRepositoryInstance.addCertificate(checksum2, "jan", "nowak", 1, "url", {from: accounts[1]})
 
 
         const array = await certificateRepositoryInstance.getCertificatesIssuedBy(accounts[0])
@@ -277,8 +277,8 @@ contract("CertificateRepository", async accounts => {
 
             await certificateRepositoryInstance.addTrustedIssuer(accounts[1])
 
-            await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1)
-            await certificateRepositoryInstance.addCertificate(checksum2, "jan", "nowak", 1, {from: accounts[1]})
+            await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url")
+            await certificateRepositoryInstance.addCertificate(checksum2, "jan", "nowak", 1, "url", {from: accounts[1]})
 
 
             const array = await certificateRepositoryInstance.getAllCertificates()
