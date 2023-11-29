@@ -132,6 +132,7 @@ contract CertificateRegistry {
         public
         onlyOwner
         validateNotEmptyAddress(_admin)
+        validateSenderIsNotOwnerOrAdmin(_admin)
     {
         admins[_admin] = false;
     }

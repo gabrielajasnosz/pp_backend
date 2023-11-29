@@ -237,6 +237,7 @@ contract("CertificateRepository", async accounts => {
         await certificateRepositoryInstance.invalidate(checksum)
         await certificateRepositoryInstance.invalidate(checksum2, {from: accounts[1]})
 
+        await certificateRepositoryInstance.removeTrustedIssuer(accounts[1])
     });
 
     it("should get all certificates issued by issuer", async () => {
@@ -267,42 +268,217 @@ contract("CertificateRepository", async accounts => {
 
         await certificateRepositoryInstance.invalidate(checksum2, {from: accounts[1]})
         await certificateRepositoryInstance.invalidate(checksum)
+
+        await certificateRepositoryInstance.removeTrustedIssuer(accounts[1])
     });
 
-        it("should get all certificates", async () => {
-            const checksum = "checksum15"
-            const checksum2 = "checksum16"
+    it("should get all certificates", async () => {
+        const checksum = "checksum15"
+        const checksum2 = "checksum16"
 
-            const certificateRepositoryInstance = await CertificateRepository.deployed();
+        const certificateRepositoryInstance = await CertificateRepository.deployed();
 
-            await certificateRepositoryInstance.addTrustedIssuer(accounts[1])
+        await certificateRepositoryInstance.addTrustedIssuer(accounts[1])
 
-            await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url")
-            await certificateRepositoryInstance.addCertificate(checksum2, "jan", "nowak", 1, "url", {from: accounts[1]})
+        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url")
+        await certificateRepositoryInstance.addCertificate(checksum2, "jan", "nowak", 1, "url", {from: accounts[1]})
 
+        const array = await certificateRepositoryInstance.getAllCertificates()
 
-            const array = await certificateRepositoryInstance.getAllCertificates()
+        assert.equal(
+              array.length,
+              2,
+              "Wrong certificates returned"
+            );
 
-            assert.equal(
-                  array.length,
-                  2,
-                  "Wrong certificates returned"
-                );
+        assert.equal(
+              array[0].checksum,
+              checksum,
+              "Wrong certificates returned"
+            );
 
-            assert.equal(
-                  array[0].checksum,
-                  checksum,
-                  "Wrong certificates returned"
-                );
+        assert.equal(
+              array[1].checksum,
+              checksum2,
+              "Wrong certificates returned"
+            );
 
-            assert.equal(
-                  array[1].checksum,
-                  checksum2,
-                  "Wrong certificates returned"
-                );
+        await certificateRepositoryInstance.invalidate(checksum)
+        await certificateRepositoryInstance.invalidate(checksum2, {from: accounts[1]})
 
-            await certificateRepositoryInstance.invalidate(checksum)
-            await certificateRepositoryInstance.invalidate(checksum2, {from: accounts[1]})
-        });
+        await certificateRepositoryInstance.removeTrustedIssuer(accounts[1])
+    });
+
+    it("should add and remove admin", async () => {
+        const certificateRepositoryInstance = await CertificateRepository.deployed();
+
+        const isAdminBefore = await certificateRepositoryInstance.isAdmin(accounts[1])
+        assert.equal(isAdminBefore,false);
+
+        await certificateRepositoryInstance.addAdmin(accounts[1])
+
+        const isAdminAfter = await certificateRepositoryInstance.isAdmin(accounts[1])
+        assert.equal(isAdminAfter,true);
+
+        await certificateRepositoryInstance.removeAdmin(accounts[1])
+
+        const isAdminAfterRemoval = await certificateRepositoryInstance.isAdmin(accounts[1])
+        assert.equal(isAdminAfterRemoval,false);
+    });
+
+    it("should fail to add admin", async () => {
+        const certificateRepositoryInstance = await CertificateRepository.deployed();
+
+        await truffleAssert.fails(
+            certificateRepositoryInstance.addAdmin(accounts[1], {from: accounts[1]}),
+            truffleAssert.ErrorType.REVERT,
+            "You are not an owner!"
+        );
+
+        await truffleAssert.fails(
+            certificateRepositoryInstance.addAdmin(accounts[2], {from: accounts[1]}),
+            truffleAssert.ErrorType.REVERT,
+            "You are not an owner!"
+        );
+
+        await certificateRepositoryInstance.addAdmin(accounts[1])
+
+        await truffleAssert.fails(
+            certificateRepositoryInstance.addAdmin(accounts[2], {from: accounts[1]}),
+            truffleAssert.ErrorType.REVERT,
+            "You are not an owner!"
+        );
+
+        await certificateRepositoryInstance.removeAdmin(accounts[1])
+    });
+
+    it("should fail to remove admin", async () => {
+        const certificateRepositoryInstance = await CertificateRepository.deployed();
+
+        await certificateRepositoryInstance.addAdmin(accounts[1])
+        await certificateRepositoryInstance.addAdmin(accounts[2])
+        await certificateRepositoryInstance.addTrustedIssuer(accounts[3])
+
+        await truffleAssert.fails(
+            certificateRepositoryInstance.removeAdmin(accounts[1], {from: accounts[2]}),
+            truffleAssert.ErrorType.REVERT,
+            "You are not an owner!"
+        );
+
+        await truffleAssert.fails(
+            certificateRepositoryInstance.removeAdmin(accounts[1], {from: accounts[1]}),
+            truffleAssert.ErrorType.REVERT,
+            "You are not an owner!"
+        );
+
+        await truffleAssert.fails(
+            certificateRepositoryInstance.removeAdmin(accounts[1], {from: accounts[3]}),
+            truffleAssert.ErrorType.REVERT,
+            "You are not an owner!"
+        );
+
+        await truffleAssert.fails(
+            certificateRepositoryInstance.removeAdmin(accounts[1], {from: accounts[4]}),
+            truffleAssert.ErrorType.REVERT,
+            "You are not an owner!"
+        );
+
+        await certificateRepositoryInstance.removeAdmin(accounts[1])
+        await certificateRepositoryInstance.removeAdmin(accounts[2])
+        await certificateRepositoryInstance.removeTrustedIssuer(accounts[3])
+    });
+
+    it("should recognize contract owner", async () => {
+        const certificateRepositoryInstance = await CertificateRepository.deployed();
+
+        const isOwnerAcc0 = await certificateRepositoryInstance.isContractOwner(accounts[0])
+        assert.equal(isOwnerAcc0, true);
+
+        await certificateRepositoryInstance.addAdmin(accounts[1])
+        await certificateRepositoryInstance.addTrustedIssuer(accounts[2])
+
+        const isOwnerAcc1 = await certificateRepositoryInstance.isContractOwner(accounts[1])
+        assert.equal(isOwnerAcc1, false);
+
+        const isOwnerAcc2 = await certificateRepositoryInstance.isContractOwner(accounts[2])
+        assert.equal(isOwnerAcc2, false);
+
+        await certificateRepositoryInstance.removeAdmin(accounts[1])
+        await certificateRepositoryInstance.removeTrustedIssuer(accounts[2])
+    });
+
+    it("should fail to remove owner from admins", async () => {
+        const certificateRepositoryInstance = await CertificateRepository.deployed();
+
+        const isOwnerAcc0 = await certificateRepositoryInstance.isContractOwner(accounts[0])
+        assert.equal(isOwnerAcc0, true);
+
+        await certificateRepositoryInstance.addAdmin(accounts[1])
+
+        await truffleAssert.fails(
+            certificateRepositoryInstance.removeAdmin(accounts[0]),
+            truffleAssert.ErrorType.REVERT,
+            "You cannot remove contract owner or yourself!"
+        );
+
+        await truffleAssert.fails(
+            certificateRepositoryInstance.removeAdmin(accounts[0], {from: accounts[1]}),
+            truffleAssert.ErrorType.REVERT,
+            "You are not an owner!"
+        );
+
+        await certificateRepositoryInstance.removeAdmin(accounts[1])
+    });
+
+    it("should fail to remove owner from trusted issuers", async () => {
+        const certificateRepositoryInstance = await CertificateRepository.deployed();
+
+        const isOwnerAcc0 = await certificateRepositoryInstance.isContractOwner(accounts[0])
+        assert.equal(isOwnerAcc0, true);
+
+        await certificateRepositoryInstance.addAdmin(accounts[1])
+
+        await truffleAssert.fails(
+            certificateRepositoryInstance.removeTrustedIssuer(accounts[0]),
+            truffleAssert.ErrorType.REVERT,
+            "You cannot remove contract owner or yourself!"
+        );
+
+        await certificateRepositoryInstance.removeAdmin(accounts[1])
+    });
+
+    it("should fail to remove trusted issuer if not admin or owner", async () => {
+        const certificateRepositoryInstance = await CertificateRepository.deployed();
+
+        const isOwnerAcc0 = await certificateRepositoryInstance.isContractOwner(accounts[0])
+        assert.equal(isOwnerAcc0, true);
+
+        await certificateRepositoryInstance.addAdmin(accounts[1])
+        await certificateRepositoryInstance.addTrustedIssuer(accounts[2])
+        await certificateRepositoryInstance.addTrustedIssuer(accounts[3])
+
+        const isAdminAcc3 = await certificateRepositoryInstance.isAdmin(accounts[3])
+        assert.equal(isAdminAcc3, false);
+
+        const isAdminAcc4 = await certificateRepositoryInstance.isAdmin(accounts[4])
+        assert.equal(isAdminAcc4, false);
+
+        await truffleAssert.fails(
+            certificateRepositoryInstance.removeTrustedIssuer(accounts[2], {from: accounts[3]}),
+            truffleAssert.ErrorType.REVERT,
+            "You are not an admin!"
+        );
+
+        await truffleAssert.fails(
+            certificateRepositoryInstance.removeTrustedIssuer(accounts[2], {from: accounts[4]}),
+            truffleAssert.ErrorType.REVERT,
+            "You are not an admin!"
+        );
+
+        await certificateRepositoryInstance.removeTrustedIssuer(accounts[2], {from: accounts[1]})
+        await certificateRepositoryInstance.removeTrustedIssuer(accounts[3], {from: accounts[1]}),
+
+        await certificateRepositoryInstance.removeAdmin(accounts[1])
+    });
 
 });
