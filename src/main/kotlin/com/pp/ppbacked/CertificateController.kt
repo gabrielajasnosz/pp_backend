@@ -1,13 +1,12 @@
 package com.pp.ppbacked
 
 import lombok.AllArgsConstructor
-import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
-import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.multipart.MultipartFile
 
@@ -25,15 +24,10 @@ class CertificateController(private val csvParser: CsvParser, private val certif
     }
 
     @PostMapping("/generate")
-    fun generate(@RequestParam("file") file: MultipartFile): ResponseEntity<ByteArray> {
+    fun generate(@RequestPart file: MultipartFile, @RequestPart issuer: String): ResponseEntity<List<CertificateDto>> {
         return try {
-            val zipBytes = certificateService.generate(file)
-
-            val headers = HttpHeaders()
-            headers.contentType = MediaType.parseMediaType("application/zip")
-            headers.set("Content-Disposition","attachment; filename=generated_files.zip")
-
-            ResponseEntity(zipBytes, headers, HttpStatus.OK)
+            val certificates = certificateService.generate(file, issuer)
+            ResponseEntity.ok(certificates)
         } catch (e: Exception) {
             e.printStackTrace()
             ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR)
