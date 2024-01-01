@@ -46,7 +46,7 @@ class CertificateService(val csvParser: CsvParser) {
     }
 
     private fun getChecksum(bytes: ByteArray): String {
-        val hash: ByteArray = MessageDigest.getInstance("MD5").digest(bytes)
+        val hash: ByteArray = MessageDigest.getInstance("SHA-256").digest(bytes)
         val checksum = BigInteger(1, hash).toString(16)
         return checksum
     }
