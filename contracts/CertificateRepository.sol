@@ -7,8 +7,6 @@ contract CertificateRegistry {
     string[] checksums;
 
     struct Recipient {
-        // recipient description
-        // Should recipient have some kind of ID? Or should recipient have address?
         string name;
         string surname;
     }
@@ -20,6 +18,7 @@ contract CertificateRegistry {
         address issuer;
         string certUrl;
         Recipient recipient;
+        string issuerIdentificationName;
     }
 
     mapping(string => Certificate) certificates;
@@ -155,7 +154,8 @@ contract CertificateRegistry {
         string memory _recipient_name,
         string memory _recipient_surname,
         uint256 _days_valid,
-        string memory _cert_url
+        string memory _cert_url,
+        string memory _issuerIdentificationName
     )
         public
         onlyTrustedIssuer
@@ -172,12 +172,12 @@ contract CertificateRegistry {
             block.timestamp + (_days_valid * 1 days),
             msg.sender,
             _cert_url,
-            Recipient(_recipient_name, _recipient_surname)
+            Recipient(_recipient_name, _recipient_surname),
+            _issuerIdentificationName
         );
         checksums.push(_checksum);
     }
 
-    // Anyone should be able to download certificate, unless recipients also has to be trusted
     function getCertificate(string memory _checksum)
         public
         view
@@ -247,5 +247,68 @@ contract CertificateRegistry {
             }
         }
         revert("Checksum not found");
+    }
+
+    struct BulkCertificateData {
+        string checksum;
+        string recipient_name;
+        string recipient_surname;
+        uint256 days_valid;
+        string cert_url;
+        string issuer_identification_name;
+    }
+
+    function validateCertificate(
+        string memory _checksum,
+        string memory _recipient_name,
+        string memory _recipient_surname,
+        uint256 _days_valid
+    ) internal view {
+        require(
+            bytes(_checksum).length > 0,
+            "File checksum must not be empty!"
+        );
+        require(
+            keccak256(bytes(certificates[_checksum].checksum)) !=
+                keccak256(bytes(_checksum)),
+            "Certificate already present!"
+        );
+        require(
+            bytes(_recipient_name).length > 0,
+            "Recipient name must not be empty!"
+        );
+        require(
+            bytes(_recipient_surname).length > 0,
+            "Recipient surname must not be empty!"
+        );
+        require(
+            _days_valid > 0,
+            "Certificate must be valid for at least 1 day!"
+        );
+    }
+
+    function bulkUploadCertificates(BulkCertificateData[] memory _bulkData)
+        public
+        onlyTrustedIssuer
+    {
+        for (uint256 i = 0; i < _bulkData.length; i++) {
+            BulkCertificateData memory _certificate = _bulkData[i];
+
+            validateCertificate(
+                _certificate.checksum,
+                _certificate.recipient_name,
+                _certificate.recipient_surname,
+                _certificate.days_valid
+            );
+
+            addCertificate(
+                _certificate.checksum,
+                _certificate.recipient_name,
+                _certificate.recipient_surname,
+                _certificate.days_valid,
+                _certificate.cert_url,
+                _certificate.issuer_identification_name
+            );
+        }
     }
 }
