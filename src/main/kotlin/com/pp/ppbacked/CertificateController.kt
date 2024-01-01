@@ -24,7 +24,7 @@ class CertificateController(private val csvParser: CsvParser, private val certif
     }
 
     @PostMapping("/generate")
-    fun generate(@RequestPart file: MultipartFile, @RequestPart issuer: String): ResponseEntity<List<CertificateDto>> {
+    fun generate(@RequestPart file: MultipartFile, @RequestPart issuer: String): ResponseEntity<List<CertificateResponse>> {
         return try {
             val certificates = certificateService.generate(file, issuer)
             ResponseEntity.ok(certificates)

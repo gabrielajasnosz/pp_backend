@@ -18,14 +18,24 @@ import java.time.LocalDate
 @Service
 class CertificateService(val csvParser: CsvParser) {
 
-    fun generate(file: MultipartFile, issuer: String) : MutableList<CertificateDto> {
+    fun generate(file: MultipartFile, issuer: String) : MutableList<CertificateResponse> {
         val certificates = csvParser.readCsvFile(file);
         return generateCertificates(certificates, issuer)
     }
 
-    private fun generateCertificates(certificates: List<PersonCertificate>, issuer: String): MutableList<CertificateDto> {
+    private fun generateCertificates(certificates: List<PersonCertificate>, issuer: String): MutableList<CertificateResponse> {
         var certificatesAsPdfs = generatePdfBytes(certificates, issuer)
-        return generateCertificatesResult(certificates, certificatesAsPdfs);
+        return generateCertificatesResult(certificates, certificatesAsPdfs).stream()
+            .map { dto ->
+            CertificateResponse(
+                dto.checksum,
+                dto.recipientName,
+                dto.recipientSurname,
+                (dto.expireDate.toEpochDay() - dto.issueDate.toEpochDay()).toString(),
+                "",
+                ""
+            )
+        }.toList()
     }
 
     private fun generatePdfBytes(certificate: List<PersonCertificate>, issuer: String): MutableList<ByteArray> {
