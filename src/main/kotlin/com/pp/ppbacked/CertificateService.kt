@@ -24,16 +24,16 @@ class CertificateService(val csvParser: CsvParser) {
     }
 
     private fun generateCertificates(certificates: List<PersonCertificate>, issuer: String): MutableList<CertificateResponse> {
-        var certificatesAsPdfs = generatePdfBytes(certificates, issuer)
-        return generateCertificatesResult(certificates, certificatesAsPdfs).stream()
+        val certificatesAsPdfs = generatePdfBytes(certificates, issuer)
+        return generateCertificatesResult(certificates, certificatesAsPdfs, issuer).stream()
             .map { dto ->
             CertificateResponse(
                 dto.checksum,
                 dto.recipientName,
                 dto.recipientSurname,
                 (dto.expireDate.toEpochDay() - dto.issueDate.toEpochDay()).toString(),
-                "",
-                ""
+                dto.url,
+                dto.owner
             )
         }.toList()
     }
@@ -49,7 +49,7 @@ class CertificateService(val csvParser: CsvParser) {
     }
 
     private fun saveFileToResources(pdfBytes: ByteArray, cert: PersonCertificate) {
-        var timestamp = System.currentTimeMillis();
+        val timestamp = System.currentTimeMillis();
         val newFile: Path = Paths.get("src/main/resources/pdf/" + "certificate_${cert.firstName}_${cert.lastName}_${timestamp}.pdf")
         Files.createDirectories(newFile.parent)
         FileOutputStream("src/main/resources/pdf/" + "certificate_${cert.firstName}_${cert.lastName}_${timestamp}.pdf").use { fos -> fos.write(pdfBytes) }
@@ -61,10 +61,10 @@ class CertificateService(val csvParser: CsvParser) {
         return checksum
     }
 
-    private fun generateCertificatesResult(certificates: List<PersonCertificate>, certificatesAsPdf: List<ByteArray>): MutableList<CertificateDto> {
-        var list = mutableListOf<CertificateDto>()
+    private fun generateCertificatesResult(certificates: List<PersonCertificate>, certificatesAsPdf: List<ByteArray>, issuer: String): MutableList<CertificateDto> {
+        val list = mutableListOf<CertificateDto>()
         certificates.forEachIndexed { index, it ->
-            list.add(CertificateDto(it.firstName, it.lastName, getChecksum(certificatesAsPdf[index]), it.expirationDate, LocalDate.now()))
+            list.add(CertificateDto(it.firstName, it.lastName, getChecksum(certificatesAsPdf[index]), it.expirationDate, LocalDate.now(), it.name, issuer))
         }
         return list
     }
