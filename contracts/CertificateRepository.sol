@@ -2,6 +2,7 @@
 pragma solidity >=0.6.0 <0.9.0;
 
 contract CertificateRegistry {
+
     address contractOwner;
 
     string[] checksums;
@@ -18,8 +19,26 @@ contract CertificateRegistry {
         address issuer;
         string certUrl;
         Recipient recipient;
-        string issuerIdentificationName;
+        string issuer_identification_name;
     }
+
+    struct BulkCertificateData {
+        string checksum;
+        string recipient_name;
+        string recipient_surname;
+        uint256 days_valid;
+        string cert_url;
+        string issuer_identification_name;
+    }
+
+    event SuccessfullyAddedCertificate(
+        string indexed checksum,
+        string recipient_name,
+        string recipient_surname,
+        string issuer_identification_name
+    );
+
+    event FailedAddingCertificate(string indexed checksum, string reason);
 
     mapping(string => Certificate) certificates;
 
@@ -249,42 +268,24 @@ contract CertificateRegistry {
         revert("Checksum not found");
     }
 
-    struct BulkCertificateData {
-        string checksum;
-        string recipient_name;
-        string recipient_surname;
-        uint256 days_valid;
-        string cert_url;
-        string issuer_identification_name;
-    }
-
-    function validateCertificate(
+    function isCertificateValid(
         string memory _checksum,
         string memory _recipient_name,
         string memory _recipient_surname,
         uint256 _days_valid
-    ) internal view {
-        require(
-            bytes(_checksum).length > 0,
-            "File checksum must not be empty!"
-        );
-        require(
-            keccak256(bytes(certificates[_checksum].checksum)) !=
-                keccak256(bytes(_checksum)),
-            "Certificate already present!"
-        );
-        require(
-            bytes(_recipient_name).length > 0,
-            "Recipient name must not be empty!"
-        );
-        require(
-            bytes(_recipient_surname).length > 0,
-            "Recipient surname must not be empty!"
-        );
-        require(
-            _days_valid > 0,
-            "Certificate must be valid for at least 1 day!"
-        );
+    ) private view returns (bool) {
+        if (
+            bytes(_checksum).length == 0 ||
+            keccak256(bytes(certificates[_checksum].checksum)) ==
+            keccak256(bytes(_checksum)) ||
+            bytes(_recipient_name).length == 0 ||
+            bytes(_recipient_surname).length == 0 ||
+            _days_valid <= 0
+        ) {
+            return false;
+        }
+
+        return true;
     }
 
     function bulkUploadCertificates(BulkCertificateData[] memory _bulkData)
@@ -294,21 +295,34 @@ contract CertificateRegistry {
         for (uint256 i = 0; i < _bulkData.length; i++) {
             BulkCertificateData memory _certificate = _bulkData[i];
 
-            validateCertificate(
-                _certificate.checksum,
-                _certificate.recipient_name,
-                _certificate.recipient_surname,
-                _certificate.days_valid
-            );
-
-            addCertificate(
-                _certificate.checksum,
-                _certificate.recipient_name,
-                _certificate.recipient_surname,
-                _certificate.days_valid,
-                _certificate.cert_url,
-                _certificate.issuer_identification_name
-            );
+            if (
+                isCertificateValid(
+                    _certificate.checksum,
+                    _certificate.recipient_name,
+                    _certificate.recipient_surname,
+                    _certificate.days_valid
+                )
+            ) {
+                addCertificate(
+                    _certificate.checksum,
+                    _certificate.recipient_name,
+                    _certificate.recipient_surname,
+                    _certificate.days_valid,
+                    _certificate.cert_url,
+                    _certificate.issuer_identification_name
+                );
+                emit SuccessfullyAddedCertificate(
+                    _certificate.checksum,
+                    _certificate.recipient_name,
+                    _certificate.recipient_surname,
+                    _certificate.issuer_identification_name
+                );
+            } else {
+                emit FailedAddingCertificate(
+                    _certificate.checksum,
+                    "Validation unsuccessful"
+                );
+            }
         }
     }
 }
