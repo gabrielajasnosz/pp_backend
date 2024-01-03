@@ -62,26 +62,21 @@ contract CertificateRegistry {
         string memory _checksum,
         string memory _recipient_name,
         string memory _recipient_surname,
-        uint256 _days_valid
+        uint256 _days_valid,
+        string memory _issuer_identification_name
     ) {
-        require(
-            bytes(_checksum).length > 0,
-            "File checksum must not be empty!"
+        bool valid;
+        string memory reason;
+        (valid, reason) = isCertificateValid(
+            _checksum,
+            _recipient_name,
+            _recipient_surname,
+            _days_valid,
+            _issuer_identification_name
         );
-        require(
-            keccak256(bytes(certificates[_checksum].checksum)) !=
-                keccak256(bytes(_checksum)),
-            "Certificate already present!"
-        );
-        require(
-            bytes(_recipient_name).length > 0,
-            "Recipient name must not be empty!"
-        );
-        require(
-            bytes(_recipient_surname).length > 0,
-            "Recipient surname must not be empty!"
-        );
-        require(_days_valid > 0, "Contract must be valid for at least 1 day!");
+        if(!valid) {
+            revert(reason);
+        }
         _;
     }
 
@@ -167,24 +162,14 @@ contract CertificateRegistry {
         return contractOwner == _owner;
     }
 
-    // Certificate managment
-    function addCertificate(
+    function addVerifiedCertificate(
         string memory _checksum,
         string memory _recipient_name,
         string memory _recipient_surname,
         uint256 _days_valid,
         string memory _cert_url,
-        string memory _issuerIdentificationName
-    )
-        public
-        onlyTrustedIssuer
-        validateCerAddProperties(
-            _checksum,
-            _recipient_name,
-            _recipient_surname,
-            _days_valid
-        )
-    {
+        string memory _issuer_identification_name
+    ) private {
         certificates[_checksum] = Certificate(
             _checksum,
             block.timestamp,
@@ -192,9 +177,45 @@ contract CertificateRegistry {
             msg.sender,
             _cert_url,
             Recipient(_recipient_name, _recipient_surname),
-            _issuerIdentificationName
+            _issuer_identification_name
         );
         checksums.push(_checksum);
+
+        emit SuccessfullyAddedCertificate(
+            _checksum,
+            _recipient_name,
+            _recipient_surname,
+            _issuer_identification_name
+        );
+    }
+
+    // Certificate management
+    function addCertificate(
+        string memory _checksum,
+        string memory _recipient_name,
+        string memory _recipient_surname,
+        uint256 _days_valid,
+        string memory _cert_url,
+        string memory _issuer_identification_name
+    )
+        public
+        onlyTrustedIssuer
+        validateCerAddProperties(
+            _checksum,
+            _recipient_name,
+            _recipient_surname,
+            _days_valid,
+            _issuer_identification_name
+        )
+    {
+        addVerifiedCertificate(
+            _checksum,
+            _recipient_name,
+            _recipient_surname,
+            _days_valid,
+            _cert_url,
+            _issuer_identification_name
+        );
     }
 
     function getCertificate(string memory _checksum)
@@ -272,20 +293,34 @@ contract CertificateRegistry {
         string memory _checksum,
         string memory _recipient_name,
         string memory _recipient_surname,
-        uint256 _days_valid
-    ) private view returns (bool) {
-        if (
-            bytes(_checksum).length == 0 ||
-            keccak256(bytes(certificates[_checksum].checksum)) ==
-            keccak256(bytes(_checksum)) ||
-            bytes(_recipient_name).length == 0 ||
-            bytes(_recipient_surname).length == 0 ||
-            _days_valid <= 0
-        ) {
-            return false;
+        uint256 _days_valid,
+        string memory _issuer_identification_name
+    ) private view returns (bool, string memory) {
+        if ( bytes(_checksum).length == 0 ) {
+            return (false, "File checksum must not be empty!");
         }
 
-        return true;
+        if ( keccak256(bytes(certificates[_checksum].checksum)) == keccak256(bytes(_checksum)) ) {
+            return (false, "Certificate already present!");
+        }
+
+        if ( bytes(_recipient_name).length == 0 ) {
+            return (false, "Recipient name must not be empty!");
+        }
+
+        if ( bytes(_recipient_surname).length == 0 ) {
+            return (false, "Recipient surname must not be empty!");
+        }
+
+        if ( bytes(_issuer_identification_name).length == 0 ) {
+            return (false, "Issuer identification name must not be empty!");
+        }
+
+        if ( _days_valid <= 0 ) {
+            return (false, "Contract must be valid for at least 1 day!");
+        }
+
+        return (true, "");
     }
 
     function bulkUploadCertificates(BulkCertificateData[] memory _bulkData)
@@ -295,15 +330,17 @@ contract CertificateRegistry {
         for (uint256 i = 0; i < _bulkData.length; i++) {
             BulkCertificateData memory _certificate = _bulkData[i];
 
-            if (
-                isCertificateValid(
-                    _certificate.checksum,
-                    _certificate.recipient_name,
-                    _certificate.recipient_surname,
-                    _certificate.days_valid
-                )
-            ) {
-                addCertificate(
+            bool valid;
+            string memory reason;
+            (valid, reason) = isCertificateValid(
+                _certificate.checksum,
+                _certificate.recipient_name,
+                _certificate.recipient_surname,
+                _certificate.days_valid,
+                _certificate.issuer_identification_name
+            );
+            if (valid) {
+                addVerifiedCertificate(
                     _certificate.checksum,
                     _certificate.recipient_name,
                     _certificate.recipient_surname,
@@ -311,16 +348,10 @@ contract CertificateRegistry {
                     _certificate.cert_url,
                     _certificate.issuer_identification_name
                 );
-                emit SuccessfullyAddedCertificate(
-                    _certificate.checksum,
-                    _certificate.recipient_name,
-                    _certificate.recipient_surname,
-                    _certificate.issuer_identification_name
-                );
             } else {
                 emit FailedAddingCertificate(
                     _certificate.checksum,
-                    "Validation unsuccessful"
+                    reason
                 );
             }
         }
