@@ -10,6 +10,7 @@ contract CertificateRegistry {
     struct Recipient {
         string name;
         string surname;
+        string email;
     }
 
     struct Certificate {
@@ -17,7 +18,7 @@ contract CertificateRegistry {
         uint256 issueDate;
         uint256 expireDate;
         address issuer;
-        string certUrl;
+        string certName;
         Recipient recipient;
         string issuer_identification_name;
     }
@@ -26,8 +27,9 @@ contract CertificateRegistry {
         string checksum;
         string recipient_name;
         string recipient_surname;
+        string recipient_email;
         uint256 days_valid;
-        string cert_url;
+        string cert_name;
         string issuer_identification_name;
     }
 
@@ -35,6 +37,7 @@ contract CertificateRegistry {
         string indexed checksum,
         string recipient_name,
         string recipient_surname,
+        string recipient_email,
         string issuer_identification_name
     );
 
@@ -62,6 +65,7 @@ contract CertificateRegistry {
         string memory _checksum,
         string memory _recipient_name,
         string memory _recipient_surname,
+        string memory _recipient_email,
         uint256 _days_valid
     ) {
         require(
@@ -80,6 +84,10 @@ contract CertificateRegistry {
         require(
             bytes(_recipient_surname).length > 0,
             "Recipient surname must not be empty!"
+        );
+        require(
+            bytes(_recipient_email).length > 0,
+            "Recipient email must not be empty!"
         );
         require(_days_valid > 0, "Contract must be valid for at least 1 day!");
         _;
@@ -172,8 +180,9 @@ contract CertificateRegistry {
         string memory _checksum,
         string memory _recipient_name,
         string memory _recipient_surname,
+        string memory _recipient_email,
         uint256 _days_valid,
-        string memory _cert_url,
+        string memory _cert_name,
         string memory _issuerIdentificationName
     )
         public
@@ -182,6 +191,7 @@ contract CertificateRegistry {
             _checksum,
             _recipient_name,
             _recipient_surname,
+            _recipient_email,
             _days_valid
         )
     {
@@ -190,8 +200,8 @@ contract CertificateRegistry {
             block.timestamp,
             block.timestamp + (_days_valid * 1 days),
             msg.sender,
-            _cert_url,
-            Recipient(_recipient_name, _recipient_surname),
+            _cert_name,
+            Recipient(_recipient_name, _recipient_surname, _recipient_email),
             _issuerIdentificationName
         );
         checksums.push(_checksum);
@@ -272,6 +282,7 @@ contract CertificateRegistry {
         string memory _checksum,
         string memory _recipient_name,
         string memory _recipient_surname,
+        string memory _recipient_email,
         uint256 _days_valid
     ) private view returns (bool) {
         if (
@@ -280,6 +291,7 @@ contract CertificateRegistry {
             keccak256(bytes(_checksum)) ||
             bytes(_recipient_name).length == 0 ||
             bytes(_recipient_surname).length == 0 ||
+            bytes(_recipient_email).length == 0 ||
             _days_valid <= 0
         ) {
             return false;
@@ -300,6 +312,7 @@ contract CertificateRegistry {
                     _certificate.checksum,
                     _certificate.recipient_name,
                     _certificate.recipient_surname,
+                    _certificate.recipient_email,
                     _certificate.days_valid
                 )
             ) {
@@ -307,14 +320,16 @@ contract CertificateRegistry {
                     _certificate.checksum,
                     _certificate.recipient_name,
                     _certificate.recipient_surname,
+                    _certificate.recipient_email,
                     _certificate.days_valid,
-                    _certificate.cert_url,
+                    _certificate.cert_name,
                     _certificate.issuer_identification_name
                 );
                 emit SuccessfullyAddedCertificate(
                     _certificate.checksum,
                     _certificate.recipient_name,
                     _certificate.recipient_surname,
+                    _certificate.recipient_email,
                     _certificate.issuer_identification_name
                 );
             } else {
