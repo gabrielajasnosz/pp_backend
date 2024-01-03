@@ -183,7 +183,7 @@ contract CertificateRegistry {
         string memory _recipient_email,
         uint256 _days_valid,
         string memory _cert_name,
-        string memory _issuerIdentificationName
+        string memory _issuer_identification_name
     )
         public
         onlyTrustedIssuer
@@ -202,7 +202,7 @@ contract CertificateRegistry {
             msg.sender,
             _cert_name,
             Recipient(_recipient_name, _recipient_surname, _recipient_email),
-            _issuerIdentificationName
+            _issuer_identification_name
         );
         checksums.push(_checksum);
     }
