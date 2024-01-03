@@ -2,13 +2,12 @@
 pragma solidity >=0.6.0 <0.9.0;
 
 contract CertificateRegistry {
+
     address contractOwner;
 
     string[] checksums;
 
     struct Recipient {
-        // recipient description
-        // Should recipient have some kind of ID? Or should recipient have address?
         string name;
         string surname;
     }
@@ -20,7 +19,26 @@ contract CertificateRegistry {
         address issuer;
         string certUrl;
         Recipient recipient;
+        string issuer_identification_name;
     }
+
+    struct BulkCertificateData {
+        string checksum;
+        string recipient_name;
+        string recipient_surname;
+        uint256 days_valid;
+        string cert_url;
+        string issuer_identification_name;
+    }
+
+    event SuccessfullyAddedCertificate(
+        string indexed checksum,
+        string recipient_name,
+        string recipient_surname,
+        string issuer_identification_name
+    );
+
+    event FailedAddingCertificate(string indexed checksum, string reason);
 
     mapping(string => Certificate) certificates;
 
@@ -155,7 +173,8 @@ contract CertificateRegistry {
         string memory _recipient_name,
         string memory _recipient_surname,
         uint256 _days_valid,
-        string memory _cert_url
+        string memory _cert_url,
+        string memory _issuerIdentificationName
     )
         public
         onlyTrustedIssuer
@@ -172,12 +191,12 @@ contract CertificateRegistry {
             block.timestamp + (_days_valid * 1 days),
             msg.sender,
             _cert_url,
-            Recipient(_recipient_name, _recipient_surname)
+            Recipient(_recipient_name, _recipient_surname),
+            _issuerIdentificationName
         );
         checksums.push(_checksum);
     }
 
-    // Anyone should be able to download certificate, unless recipients also has to be trusted
     function getCertificate(string memory _checksum)
         public
         view
@@ -247,5 +266,63 @@ contract CertificateRegistry {
             }
         }
         revert("Checksum not found");
+    }
+
+    function isCertificateValid(
+        string memory _checksum,
+        string memory _recipient_name,
+        string memory _recipient_surname,
+        uint256 _days_valid
+    ) private view returns (bool) {
+        if (
+            bytes(_checksum).length == 0 ||
+            keccak256(bytes(certificates[_checksum].checksum)) ==
+            keccak256(bytes(_checksum)) ||
+            bytes(_recipient_name).length == 0 ||
+            bytes(_recipient_surname).length == 0 ||
+            _days_valid <= 0
+        ) {
+            return false;
+        }
+
+        return true;
+    }
+
+    function bulkUploadCertificates(BulkCertificateData[] memory _bulkData)
+        public
+        onlyTrustedIssuer
+    {
+        for (uint256 i = 0; i < _bulkData.length; i++) {
+            BulkCertificateData memory _certificate = _bulkData[i];
+
+            if (
+                isCertificateValid(
+                    _certificate.checksum,
+                    _certificate.recipient_name,
+                    _certificate.recipient_surname,
+                    _certificate.days_valid
+                )
+            ) {
+                addCertificate(
+                    _certificate.checksum,
+                    _certificate.recipient_name,
+                    _certificate.recipient_surname,
+                    _certificate.days_valid,
+                    _certificate.cert_url,
+                    _certificate.issuer_identification_name
+                );
+                emit SuccessfullyAddedCertificate(
+                    _certificate.checksum,
+                    _certificate.recipient_name,
+                    _certificate.recipient_surname,
+                    _certificate.issuer_identification_name
+                );
+            } else {
+                emit FailedAddingCertificate(
+                    _certificate.checksum,
+                    "Validation unsuccessful"
+                );
+            }
+        }
     }
 }
