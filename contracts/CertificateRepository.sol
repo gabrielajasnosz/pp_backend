@@ -25,9 +25,7 @@ contract CertificateRegistry {
 
     struct BulkCertificateData {
         string checksum;
-        string recipient_name;
-        string recipient_surname;
-        string recipient_email;
+        Recipient recipient;
         uint256 days_valid;
         string cert_name;
         string issuer_identification_name;
@@ -63,33 +61,23 @@ contract CertificateRegistry {
 
     modifier validateCerAddProperties(
         string memory _checksum,
-        string memory _recipient_name,
-        string memory _recipient_surname,
-        string memory _recipient_email,
-        uint256 _days_valid
+        Recipient memory _recipient,
+        uint256 _days_valid,
+        string memory _cert_name,
+        string memory _issuer_identification_name
     ) {
-        require(
-            bytes(_checksum).length > 0,
-            "File checksum must not be empty!"
+        bool valid;
+        string memory reason;
+        (valid, reason) = isCertificateValid(
+            _checksum,
+            _recipient,
+            _days_valid,
+            _cert_name,
+            _issuer_identification_name
         );
-        require(
-            keccak256(bytes(certificates[_checksum].checksum)) !=
-                keccak256(bytes(_checksum)),
-            "Certificate already present!"
-        );
-        require(
-            bytes(_recipient_name).length > 0,
-            "Recipient name must not be empty!"
-        );
-        require(
-            bytes(_recipient_surname).length > 0,
-            "Recipient surname must not be empty!"
-        );
-        require(
-            bytes(_recipient_email).length > 0,
-            "Recipient email must not be empty!"
-        );
-        require(_days_valid > 0, "Contract must be valid for at least 1 day!");
+        if(!valid) {
+            revert(reason);
+        }
         _;
     }
 
@@ -175,12 +163,37 @@ contract CertificateRegistry {
         return contractOwner == _owner;
     }
 
-    // Certificate managment
+    function addVerifiedCertificate(
+        string memory _checksum,
+        Recipient memory _recipient,
+        uint256 _days_valid,
+        string memory _cert_name,
+        string memory _issuer_identification_name
+    ) private {
+        certificates[_checksum] = Certificate(
+            _checksum,
+            block.timestamp,
+            block.timestamp + (_days_valid * 1 days),
+            msg.sender,
+            _cert_name,
+            _recipient,
+            _issuer_identification_name
+        );
+        checksums.push(_checksum);
+
+        emit SuccessfullyAddedCertificate(
+            _checksum,
+            _recipient.name,
+            _recipient.surname,
+            _recipient.email,
+            _issuer_identification_name
+        );
+    }
+
+    // Certificate management
     function addCertificate(
         string memory _checksum,
-        string memory _recipient_name,
-        string memory _recipient_surname,
-        string memory _recipient_email,
+        Recipient memory _recipient,
         uint256 _days_valid,
         string memory _cert_name,
         string memory _issuer_identification_name
@@ -189,22 +202,19 @@ contract CertificateRegistry {
         onlyTrustedIssuer
         validateCerAddProperties(
             _checksum,
-            _recipient_name,
-            _recipient_surname,
-            _recipient_email,
-            _days_valid
+            _recipient,
+            _days_valid,
+            _cert_name,
+            _issuer_identification_name
         )
     {
-        certificates[_checksum] = Certificate(
+        addVerifiedCertificate(
             _checksum,
-            block.timestamp,
-            block.timestamp + (_days_valid * 1 days),
-            msg.sender,
+            _recipient,
+            _days_valid,
             _cert_name,
-            Recipient(_recipient_name, _recipient_surname, _recipient_email),
             _issuer_identification_name
         );
-        checksums.push(_checksum);
     }
 
     function getCertificate(string memory _checksum)
@@ -280,24 +290,44 @@ contract CertificateRegistry {
 
     function isCertificateValid(
         string memory _checksum,
-        string memory _recipient_name,
-        string memory _recipient_surname,
-        string memory _recipient_email,
-        uint256 _days_valid
-    ) private view returns (bool) {
-        if (
-            bytes(_checksum).length == 0 ||
-            keccak256(bytes(certificates[_checksum].checksum)) ==
-            keccak256(bytes(_checksum)) ||
-            bytes(_recipient_name).length == 0 ||
-            bytes(_recipient_surname).length == 0 ||
-            bytes(_recipient_email).length == 0 ||
-            _days_valid <= 0
-        ) {
-            return false;
+        Recipient memory _recipient,
+        uint256 _days_valid,
+        string memory _cert_name,
+        string memory _issuer_identification_name
+    ) private view returns (bool, string memory) {
+        if ( bytes(_checksum).length == 0 ) {
+            return (false, "File checksum must not be empty!");
         }
 
-        return true;
+        if ( keccak256(bytes(certificates[_checksum].checksum)) == keccak256(bytes(_checksum)) ) {
+            return (false, "Certificate already present!");
+        }
+
+        if ( bytes(_recipient.name).length == 0 ) {
+            return (false, "Recipient name must not be empty!");
+        }
+
+        if ( bytes(_recipient.surname).length == 0 ) {
+            return (false, "Recipient surname must not be empty!");
+        }
+
+        if ( bytes(_recipient.email).length == 0 ) {
+            return (false, "Recipient email must not be empty!");
+        }
+
+        if ( bytes(_issuer_identification_name).length == 0 ) {
+            return (false, "Issuer identification name must not be empty!");
+        }
+
+        if ( _days_valid <= 0 ) {
+            return (false, "Contract must be valid for at least 1 day!");
+        }
+
+        if ( bytes(_cert_name).length == 0 ) {
+            return (false, "Cert name must not be empty!");
+        }
+
+        return (true, "");
     }
 
     function bulkUploadCertificates(BulkCertificateData[] memory _bulkData)
@@ -307,35 +337,27 @@ contract CertificateRegistry {
         for (uint256 i = 0; i < _bulkData.length; i++) {
             BulkCertificateData memory _certificate = _bulkData[i];
 
-            if (
-                isCertificateValid(
+            bool valid;
+            string memory reason;
+            (valid, reason) = isCertificateValid(
+                _certificate.checksum,
+                _certificate.recipient,
+                _certificate.days_valid,
+                _certificate.cert_name,
+                _certificate.issuer_identification_name
+            );
+            if (valid) {
+                addVerifiedCertificate(
                     _certificate.checksum,
-                    _certificate.recipient_name,
-                    _certificate.recipient_surname,
-                    _certificate.recipient_email,
-                    _certificate.days_valid
-                )
-            ) {
-                addCertificate(
-                    _certificate.checksum,
-                    _certificate.recipient_name,
-                    _certificate.recipient_surname,
-                    _certificate.recipient_email,
+                    _certificate.recipient,
                     _certificate.days_valid,
                     _certificate.cert_name,
-                    _certificate.issuer_identification_name
-                );
-                emit SuccessfullyAddedCertificate(
-                    _certificate.checksum,
-                    _certificate.recipient_name,
-                    _certificate.recipient_surname,
-                    _certificate.recipient_email,
                     _certificate.issuer_identification_name
                 );
             } else {
                 emit FailedAddingCertificate(
                     _certificate.checksum,
-                    "Validation unsuccessful"
+                    reason
                 );
             }
         }
