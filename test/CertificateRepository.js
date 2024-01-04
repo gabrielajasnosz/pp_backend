@@ -8,7 +8,7 @@ contract("CertificateRepository", async accounts => {
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
         await truffleAssert.passes(
-            certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url", "Uniwersytet")
+            certificateRepositoryInstance.addCertificate(checksum, {name:"jan", surname:"kowalski", email:"jan.kowalski@example.com"}, 1, "Cert Name", "Uniwersytet")
         );
 
         await certificateRepositoryInstance.invalidate(checksum)
@@ -19,7 +19,7 @@ contract("CertificateRepository", async accounts => {
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
         await truffleAssert.fails(
-            certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url", "Uniwersytet", {from: accounts[1]}),
+            certificateRepositoryInstance.addCertificate(checksum, {name:"jan", surname:"kowalski", email:"jan.kowalski@example.com"}, 1, "Cert Name", "Uniwersytet", {from: accounts[1]}),
             truffleAssert.ErrorType.REVERT,
             "You are not a trusted issuer!"
         );
@@ -29,9 +29,9 @@ contract("CertificateRepository", async accounts => {
         const checksum = "checksum3"
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
-        certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url", "Uniwersytet")
+        certificateRepositoryInstance.addCertificate(checksum, {name:"jan", surname:"kowalski", email:"jan.kowalski@example.com"}, 1, "Cert Name", "Uniwersytet")
         await truffleAssert.fails(
-            certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url", "Uniwersytet"),
+            certificateRepositoryInstance.addCertificate(checksum, {name:"jan", surname:"kowalski", email:"jan.kowalski@example.com"}, 1, "Cert Name", "Uniwersytet"),
             truffleAssert.ErrorType.REVERT,
             "Certificate already present!"
         );
@@ -44,31 +44,42 @@ contract("CertificateRepository", async accounts => {
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
         await truffleAssert.fails(
-            certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url", "Uniwersytet"),
+            certificateRepositoryInstance.addCertificate(checksum, {name:"jan", surname:"kowalski", email:"jan.kowalski@example.com"}, 1, "Cert Name", "Uniwersytet"),
             truffleAssert.ErrorType.REVERT,
             "File checksum must not be empty!"
         );
     });
 
-    it("should fail to add certificate if _recipient_name empty", async () => {
+    it("should fail to add certificate if _recipient.name empty", async () => {
         const checksum = "checksum4"
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
         await truffleAssert.fails(
-            certificateRepositoryInstance.addCertificate(checksum, "", "kowalski", 1, "url", "Uniwersytet"),
+            certificateRepositoryInstance.addCertificate(checksum, {name:"", surname:"kowalski", email:"jan.kowalski@example.com"}, 1, "Cert Name", "Uniwersytet"),
             truffleAssert.ErrorType.REVERT,
             "Recipient name must not be empty!"
         );
     });
 
-    it("should fail to add certificate if _recipient_surname empty", async () => {
+    it("should fail to add certificate if _recipient.surname empty", async () => {
         const checksum = "checksum5"
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
         await truffleAssert.fails(
-            certificateRepositoryInstance.addCertificate(checksum, "jan", "", 1, "url", "Uniwersytet"),
+            certificateRepositoryInstance.addCertificate(checksum, {name:"jan", surname:"", email:"jan.kowalski@example.com"}, 1, "Cert Name", "Uniwersytet"),
             truffleAssert.ErrorType.REVERT,
             "Recipient surname must not be empty!"
+        );
+    });
+
+    it("should fail to add certificate if _recipient.email empty", async () => {
+        const checksum = "checksum5"
+
+        const certificateRepositoryInstance = await CertificateRepository.deployed();
+        await truffleAssert.fails(
+            certificateRepositoryInstance.addCertificate(checksum, {name:"jan", surname:"kowalski", email: ""}, 1, "Cert Name", "Uniwersytet"),
+            truffleAssert.ErrorType.REVERT,
+            "Recipient email must not be empty!"
         );
     });
 
@@ -77,9 +88,20 @@ contract("CertificateRepository", async accounts => {
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
         await truffleAssert.fails(
-            certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 0, "url", "Uniwersytet"),
+            certificateRepositoryInstance.addCertificate(checksum, {name:"jan", surname:"kowalski", email:"jan.kowalski@example.com"}, 0, "Cert Name", "Uniwersytet"),
             truffleAssert.ErrorType.REVERT,
             "Contract must be valid for at least 1 day!"
+        );
+    });
+
+    it("should fail to add certificate if cert_name empty", async () => {
+        const checksum = "checksum6"
+
+        const certificateRepositoryInstance = await CertificateRepository.deployed();
+        await truffleAssert.fails(
+            certificateRepositoryInstance.addCertificate(checksum, {name:"jan", surname:"kowalski", email:"jan.kowalski@example.com"}, 1, "", "Uniwersytet"),
+            truffleAssert.ErrorType.REVERT,
+            "Cert name must not be empty!"
         );
     });
 
@@ -88,7 +110,7 @@ contract("CertificateRepository", async accounts => {
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
         await truffleAssert.fails(
-            certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 0, "url", ""),
+            certificateRepositoryInstance.addCertificate(checksum, {name:"jan", surname:"kowalski", email:"jan.kowalski@example.com"}, 1, "Cert Name", ""),
             truffleAssert.ErrorType.REVERT,
             "Issuer identification name must not be empty!"
         );
@@ -99,7 +121,7 @@ contract("CertificateRepository", async accounts => {
         const _days_valid = 1
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
-        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", _days_valid, "url", "Uniwersytet")
+        await certificateRepositoryInstance.addCertificate(checksum, {name:"jan", surname:"kowalski", email:"jan.kowalski@example.com"}, _days_valid, "Cert Name", "Uniwersytet")
 
         const certificate = await certificateRepositoryInstance.getCertificate(checksum)
         assert.equal(
@@ -113,6 +135,11 @@ contract("CertificateRepository", async accounts => {
               "Surname is not correct"
             );
         assert.equal(
+              certificate.recipient.email,
+              "jan.kowalski@example.com",
+              "Email is not correct"
+            );
+        assert.equal(
               parseInt(certificate.expireDate),
               parseInt(certificate.issueDate) + (_days_valid * 86400),
               "Expire date is not correct"
@@ -123,9 +150,14 @@ contract("CertificateRepository", async accounts => {
               "Issuer is not correct"
             );
         assert.equal(
-              certificate.certUrl,
-              "url",
-              "Url is not correct"
+              certificate.certName,
+              "Cert Name",
+              "Cert Name is not correct"
+            );
+        assert.equal(
+              certificate.issuer_identification_name,
+              "Uniwersytet",
+              "Issuer name is not correct"
             );
 
         await certificateRepositoryInstance.invalidate(checksum)
@@ -154,7 +186,7 @@ contract("CertificateRepository", async accounts => {
         const _days_valid = 1
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
-        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", _days_valid, "url", "Uniwersytet")
+        await certificateRepositoryInstance.addCertificate(checksum, {name:"jan", surname:"kowalski", email:"jan.kowalski@example.com"}, _days_valid, "Cert Name", "Uniwersytet")
 
         const certificate = await certificateRepositoryInstance.getCertificate(checksum)
         assert.equal(
@@ -187,7 +219,7 @@ contract("CertificateRepository", async accounts => {
 
         const certificateRepositoryInstance = await CertificateRepository.deployed();
 
-        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url", "Uniwersytet")
+        await certificateRepositoryInstance.addCertificate(checksum, {name:"jan", surname:"kowalski", email:"jan.kowalski@example.com"}, 1, "Cert Name", "Uniwersytet")
 
         await truffleAssert.fails(
             certificateRepositoryInstance.invalidate(checksum, {from: accounts[1]}),
@@ -219,10 +251,10 @@ contract("CertificateRepository", async accounts => {
         const certificateRepositoryInstance = await CertificateRepository.deployed();
         await certificateRepositoryInstance.addTrustedIssuer(accounts[1])
 
-        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url", "Uniwersytet")
-        await certificateRepositoryInstance.addCertificate(checksum2, "jan", "nowak", 1, "url", "Uniwersytet", {from: accounts[1]})
+        await certificateRepositoryInstance.addCertificate(checksum, {name:"jan", surname:"kowalski", email:"jan.kowalski@example.com"}, 1, "Cert Name", "Uniwersytet")
+        await certificateRepositoryInstance.addCertificate(checksum2, {name:"jan", surname:"nowak", email:"jan.nowak@example.com"}, 1, "Cert Name", "Uniwersytet", {from: accounts[1]})
 
-        await certificateRepositoryInstance.addCertificate(checksum3, "jan", "wójcik", 1, "url", "Uniwersytet")
+        await certificateRepositoryInstance.addCertificate(checksum3, {name:"jan", surname:"wojcik", email:"jan.wojcik@example.com"}, 1, "Cert Name", "Uniwersytet")
         await certificateRepositoryInstance.invalidate(checksum3)
 
         const array = await certificateRepositoryInstance.getChecksums()
@@ -259,8 +291,8 @@ contract("CertificateRepository", async accounts => {
 
         await certificateRepositoryInstance.addTrustedIssuer(accounts[1])
 
-        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url", "Uniwersytet")
-        await certificateRepositoryInstance.addCertificate(checksum2, "jan", "nowak", 1, "url", "Uniwersytet", {from: accounts[1]})
+        await certificateRepositoryInstance.addCertificate(checksum, {name:"jan", surname:"kowalski", email:"jan.kowalski@example.com"}, 1, "Cert Name", "Uniwersytet")
+        await certificateRepositoryInstance.addCertificate(checksum2, {name:"jan", surname:"nowak", email:"jan.nowak@example.com"}, 1, "Cert Name", "Uniwersytet", {from: accounts[1]})
 
 
         const array = await certificateRepositoryInstance.getCertificatesIssuedBy(accounts[0])
@@ -291,8 +323,8 @@ contract("CertificateRepository", async accounts => {
 
         await certificateRepositoryInstance.addTrustedIssuer(accounts[1])
 
-        await certificateRepositoryInstance.addCertificate(checksum, "jan", "kowalski", 1, "url", "Uniwersytet")
-        await certificateRepositoryInstance.addCertificate(checksum2, "jan", "nowak", 1, "url", "Uniwersytet", {from: accounts[1]})
+        await certificateRepositoryInstance.addCertificate(checksum, {name:"jan", surname:"kowalski", email:"jan.kowalski@example.com"}, 1, "Cert Name", "Uniwersytet")
+        await certificateRepositoryInstance.addCertificate(checksum2, {name:"jan", surname:"nowak", email:"jan.nowak@example.com"}, 1, "Cert Name", "Uniwersytet", {from: accounts[1]})
 
         const array = await certificateRepositoryInstance.getAllCertificates()
 
@@ -498,7 +530,7 @@ contract("CertificateRepository", async accounts => {
         const certificateRepositoryInstance = await CertificateRepository.deployed();
 
 
-        const result = await certificateRepositoryInstance.addCertificate(checksum, "jan", "nowak", 1, "url", "Uniwersytet")
+        const result = await certificateRepositoryInstance.addCertificate(checksum, {name:"jan", surname:"nowak", email:"jan.nowak@example.com"}, 1, "Cert Name", "Uniwersytet")
 
         await truffleAssert.eventEmitted(
             result,
@@ -518,9 +550,9 @@ contract("CertificateRepository", async accounts => {
         const bulkData = [
             {
                 checksum: "checksum18",
-                recipient_name: "jan",
-                recipient_surname: "kowalski",
-                days_valid: 0, cert_url: "url",
+                recipient: {name:"jan", surname:"kowalski", email:"jan.kowalski@example.com"},
+                days_valid: 0,
+                cert_name: "Cert Name",
                 issuer_identification_name: "Uniwersytet"
             }
         ]
@@ -543,16 +575,16 @@ contract("CertificateRepository", async accounts => {
         const bulkData = [
             {
                 checksum: "checksum18",
-                recipient_name: "jan",
-                recipient_surname: "kowalski",
-                days_valid: 0, cert_url: "url",
+                recipient: {name:"jan", surname:"kowalski", email:"jan.kowalski@example.com"},
+                days_valid: 0,
+                cert_name: "Cert Name",
                 issuer_identification_name: "Uniwersytet"
             },
             {
                 checksum: "checksum19",
-                recipient_name: "jan",
-                recipient_surname: "nowakowski",
-                days_valid: 1, cert_url: "url",
+                recipient: {name:"jan", surname:"nowakowski", email:"jan.nowakowski@example.com"},
+                days_valid: 1,
+                cert_name: "Cert Name",
                 issuer_identification_name: "Uniwersytet"
             }
         ]

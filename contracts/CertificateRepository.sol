@@ -10,6 +10,7 @@ contract CertificateRegistry {
     struct Recipient {
         string name;
         string surname;
+        string email;
     }
 
     struct Certificate {
@@ -17,17 +18,16 @@ contract CertificateRegistry {
         uint256 issueDate;
         uint256 expireDate;
         address issuer;
-        string certUrl;
+        string certName;
         Recipient recipient;
         string issuer_identification_name;
     }
 
     struct BulkCertificateData {
         string checksum;
-        string recipient_name;
-        string recipient_surname;
+        Recipient recipient;
         uint256 days_valid;
-        string cert_url;
+        string cert_name;
         string issuer_identification_name;
     }
 
@@ -35,6 +35,7 @@ contract CertificateRegistry {
         string indexed checksum,
         string recipient_name,
         string recipient_surname,
+        string recipient_email,
         string issuer_identification_name
     );
 
@@ -60,18 +61,18 @@ contract CertificateRegistry {
 
     modifier validateCerAddProperties(
         string memory _checksum,
-        string memory _recipient_name,
-        string memory _recipient_surname,
+        Recipient memory _recipient,
         uint256 _days_valid,
+        string memory _cert_name,
         string memory _issuer_identification_name
     ) {
         bool valid;
         string memory reason;
         (valid, reason) = isCertificateValid(
             _checksum,
-            _recipient_name,
-            _recipient_surname,
+            _recipient,
             _days_valid,
+            _cert_name,
             _issuer_identification_name
         );
         if(!valid) {
@@ -164,10 +165,9 @@ contract CertificateRegistry {
 
     function addVerifiedCertificate(
         string memory _checksum,
-        string memory _recipient_name,
-        string memory _recipient_surname,
+        Recipient memory _recipient,
         uint256 _days_valid,
-        string memory _cert_url,
+        string memory _cert_name,
         string memory _issuer_identification_name
     ) private {
         certificates[_checksum] = Certificate(
@@ -175,16 +175,17 @@ contract CertificateRegistry {
             block.timestamp,
             block.timestamp + (_days_valid * 1 days),
             msg.sender,
-            _cert_url,
-            Recipient(_recipient_name, _recipient_surname),
+            _cert_name,
+            _recipient,
             _issuer_identification_name
         );
         checksums.push(_checksum);
 
         emit SuccessfullyAddedCertificate(
             _checksum,
-            _recipient_name,
-            _recipient_surname,
+            _recipient.name,
+            _recipient.surname,
+            _recipient.email,
             _issuer_identification_name
         );
     }
@@ -192,28 +193,26 @@ contract CertificateRegistry {
     // Certificate management
     function addCertificate(
         string memory _checksum,
-        string memory _recipient_name,
-        string memory _recipient_surname,
+        Recipient memory _recipient,
         uint256 _days_valid,
-        string memory _cert_url,
+        string memory _cert_name,
         string memory _issuer_identification_name
     )
         public
         onlyTrustedIssuer
         validateCerAddProperties(
             _checksum,
-            _recipient_name,
-            _recipient_surname,
+            _recipient,
             _days_valid,
+            _cert_name,
             _issuer_identification_name
         )
     {
         addVerifiedCertificate(
             _checksum,
-            _recipient_name,
-            _recipient_surname,
+            _recipient,
             _days_valid,
-            _cert_url,
+            _cert_name,
             _issuer_identification_name
         );
     }
@@ -291,9 +290,9 @@ contract CertificateRegistry {
 
     function isCertificateValid(
         string memory _checksum,
-        string memory _recipient_name,
-        string memory _recipient_surname,
+        Recipient memory _recipient,
         uint256 _days_valid,
+        string memory _cert_name,
         string memory _issuer_identification_name
     ) private view returns (bool, string memory) {
         if ( bytes(_checksum).length == 0 ) {
@@ -304,12 +303,16 @@ contract CertificateRegistry {
             return (false, "Certificate already present!");
         }
 
-        if ( bytes(_recipient_name).length == 0 ) {
+        if ( bytes(_recipient.name).length == 0 ) {
             return (false, "Recipient name must not be empty!");
         }
 
-        if ( bytes(_recipient_surname).length == 0 ) {
+        if ( bytes(_recipient.surname).length == 0 ) {
             return (false, "Recipient surname must not be empty!");
+        }
+
+        if ( bytes(_recipient.email).length == 0 ) {
+            return (false, "Recipient email must not be empty!");
         }
 
         if ( bytes(_issuer_identification_name).length == 0 ) {
@@ -318,6 +321,10 @@ contract CertificateRegistry {
 
         if ( _days_valid <= 0 ) {
             return (false, "Contract must be valid for at least 1 day!");
+        }
+
+        if ( bytes(_cert_name).length == 0 ) {
+            return (false, "Cert name must not be empty!");
         }
 
         return (true, "");
@@ -334,18 +341,17 @@ contract CertificateRegistry {
             string memory reason;
             (valid, reason) = isCertificateValid(
                 _certificate.checksum,
-                _certificate.recipient_name,
-                _certificate.recipient_surname,
+                _certificate.recipient,
                 _certificate.days_valid,
+                _certificate.cert_name,
                 _certificate.issuer_identification_name
             );
             if (valid) {
                 addVerifiedCertificate(
                     _certificate.checksum,
-                    _certificate.recipient_name,
-                    _certificate.recipient_surname,
+                    _certificate.recipient,
                     _certificate.days_valid,
-                    _certificate.cert_url,
+                    _certificate.cert_name,
                     _certificate.issuer_identification_name
                 );
             } else {
