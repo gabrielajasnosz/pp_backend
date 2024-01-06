@@ -32,14 +32,19 @@ contract CertificateRegistry {
     }
 
     event SuccessfullyAddedCertificate(
-        string indexed checksum,
+        string indexed index,
+        string checksum,
         string recipient_name,
         string recipient_surname,
         string recipient_email,
         string issuer_identification_name
     );
 
-    event FailedAddingCertificate(string indexed checksum, string reason);
+    event FailedAddingCertificate(
+        string indexed index,
+        string checksum,
+        string reason
+    );
 
     mapping(string => Certificate) certificates;
 
@@ -182,6 +187,7 @@ contract CertificateRegistry {
         checksums.push(_checksum);
 
         emit SuccessfullyAddedCertificate(
+            _checksum,
             _checksum,
             _recipient.name,
             _recipient.surname,
@@ -356,6 +362,7 @@ contract CertificateRegistry {
                 );
             } else {
                 emit FailedAddingCertificate(
+                    _certificate.checksum,
                     _certificate.checksum,
                     reason
                 );
